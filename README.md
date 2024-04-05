@@ -1,6 +1,6 @@
-Upgraded simple-arbitrage (support tx between uniswap v2 and v3)
+Upgraded simple-arbitrage (arbitrage between uniswap v2 and v3)
 ================
-This repository is one of the upgraded versions of simple-arbitrage,.
+This repository is one of the upgraded versions of simple-arbitrage.
 
 This version supports arbitraging between uniswap v2 and uniswap v3 pools by discovering arbitrage opportunities between v2 and v3 pools.
 
