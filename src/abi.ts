@@ -1,59 +1,288 @@
-export const UNISWAP_QUERY_ABI = [{
-  "inputs": [{
-    "internalType": "contract UniswapV2Factory",
-    "name": "_uniswapFactory",
-    "type": "address"
-  }, {"internalType": "uint256", "name": "_start", "type": "uint256"}, {
-    "internalType": "uint256",
-    "name": "_stop",
-    "type": "uint256"
-  }],
-  "name": "getPairsByIndexRange",
-  "outputs": [{"internalType": "address[3][]", "name": "", "type": "address[3][]"}],
-  "stateMutability": "view",
-  "type": "function"
-}, {
-  "inputs": [{"internalType": "contract IUniswapV2Pair[]", "name": "_pairs", "type": "address[]"}],
-  "name": "getReservesByPairs",
-  "outputs": [{"internalType": "uint256[3][]", "name": "", "type": "uint256[3][]"}],
-  "stateMutability": "view",
-  "type": "function"
-}]
+export const QUOTER_ABI = [
+	  {
+		"inputs": [
+		  {
+			"internalType": "address",
+			"name": "_factory",
+			"type": "address"
+		  },
+		  {
+			"internalType": "address",
+			"name": "_WETH9",
+			"type": "address"
+		  }
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	  },
+	  {
+		"inputs": [],
+		"name": "WETH9",
+		"outputs": [
+		  {
+			"internalType": "address",
+			"name": "",
+			"type": "address"
+		  }
+		],
+		"stateMutability": "view",
+		"type": "function"
+	  },
+	  {
+		"inputs": [],
+		"name": "factory",
+		"outputs": [
+		  {
+			"internalType": "address",
+			"name": "",
+			"type": "address"
+		  }
+		],
+		"stateMutability": "view",
+		"type": "function"
+	  },
+	  {
+		"inputs": [
+		  {
+			"internalType": "bytes",
+			"name": "path",
+			"type": "bytes"
+		  },
+		  {
+			"internalType": "uint256",
+			"name": "amountIn",
+			"type": "uint256"
+		  }
+		],
+		"name": "quoteExactInput",
+		"outputs": [
+		  {
+			"internalType": "uint256",
+			"name": "amountOut",
+			"type": "uint256"
+		  }
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	  },
+	  {
+		"inputs": [
+		  {
+			"internalType": "address",
+			"name": "tokenIn",
+			"type": "address"
+		  },
+		  {
+			"internalType": "address",
+			"name": "tokenOut",
+			"type": "address"
+		  },
+		  {
+			"internalType": "uint24",
+			"name": "fee",
+			"type": "uint24"
+		  },
+		  {
+			"internalType": "uint256",
+			"name": "amountIn",
+			"type": "uint256"
+		  },
+		  {
+			"internalType": "uint160",
+			"name": "sqrtPriceLimitX96",
+			"type": "uint160"
+		  }
+		],
+		"name": "quoteExactInputSingle",
+		"outputs": [
+		  {
+			"internalType": "uint256",
+			"name": "amountOut",
+			"type": "uint256"
+		  }
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	  },
+	  {
+		"inputs": [
+		  {
+			"internalType": "bytes",
+			"name": "path",
+			"type": "bytes"
+		  },
+		  {
+			"internalType": "uint256",
+			"name": "amountOut",
+			"type": "uint256"
+		  }
+		],
+		"name": "quoteExactOutput",
+		"outputs": [
+		  {
+			"internalType": "uint256",
+			"name": "amountIn",
+			"type": "uint256"
+		  }
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	  },
+	  {
+		"inputs": [
+		  {
+			"internalType": "address",
+			"name": "tokenIn",
+			"type": "address"
+		  },
+		  {
+			"internalType": "address",
+			"name": "tokenOut",
+			"type": "address"
+		  },
+		  {
+			"internalType": "uint24",
+			"name": "fee",
+			"type": "uint24"
+		  },
+		  {
+			"internalType": "uint256",
+			"name": "amountOut",
+			"type": "uint256"
+		  },
+		  {
+			"internalType": "uint160",
+			"name": "sqrtPriceLimitX96",
+			"type": "uint160"
+		  }
+		],
+		"name": "quoteExactOutputSingle",
+		"outputs": [
+		  {
+			"internalType": "uint256",
+			"name": "amountIn",
+			"type": "uint256"
+		  }
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	  },
+	  {
+		"inputs": [
+		  {
+			"internalType": "int256",
+			"name": "amount0Delta",
+			"type": "int256"
+		  },
+		  {
+			"internalType": "int256",
+			"name": "amount1Delta",
+			"type": "int256"
+		  },
+		  {
+			"internalType": "bytes",
+			"name": "path",
+			"type": "bytes"
+		  }
+		],
+		"name": "uniswapV3SwapCallback",
+		"outputs": [],
+		"stateMutability": "view",
+		"type": "function"
+	  }
+]
+  
 
-export const BUNDLE_EXECUTOR_ABI = [{
-  "inputs": [{
-    "internalType": "address payable",
-    "name": "_to",
-    "type": "address"
-  }, {"internalType": "uint256", "name": "_value", "type": "uint256"}, {
-    "internalType": "bytes",
-    "name": "_data",
-    "type": "bytes"
-  }],
-  "name": "call",
-  "outputs": [{"internalType": "bytes", "name": "", "type": "bytes"}],
-  "stateMutability": "payable",
-  "type": "function"
-}, {
-  "inputs": [{"internalType": "address", "name": "_executor", "type": "address"}],
-  "stateMutability": "payable",
-  "type": "constructor"
-}, {
-  "inputs": [{
-    "internalType": "uint256",
-    "name": "_wethAmountToFirstMarket",
-    "type": "uint256"
-  }, {"internalType": "uint256", "name": "_ethAmountToCoinbase", "type": "uint256"}, {
-    "internalType": "address[]",
-    "name": "_targets",
-    "type": "address[]"
-  }, {"internalType": "bytes[]", "name": "_payloads", "type": "bytes[]"}],
-  "name": "uniswapWeth",
-  "outputs": [],
-  "stateMutability": "payable",
-  "type": "function"
-}, {"stateMutability": "payable", "type": "receive"}]
-
+export const UNISWAP_QUERY_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "contract Quoter",
+				"name": "quoter",
+				"type": "address"
+			},
+			{
+				"internalType": "contract IUniswapV2Pair[]",
+				"name": "_pairs",
+				"type": "address[]"
+			},
+			{
+				"internalType": "address",
+				"name": "WETH",
+				"type": "address"
+			},
+			{
+				"internalType": "address[]",
+				"name": "tokenOut",
+				"type": "address[]"
+			},
+			{
+				"internalType": "uint24[4]",
+				"name": "fee",
+				"type": "uint24[4]"
+			},
+			{
+				"internalType": "bool[4][]",
+				"name": "feeOn",
+				"type": "bool[4][]"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amountIn",
+				"type": "uint256"
+			}
+		],
+		"name": "getReservesByPairs",
+		"outputs": [
+			{
+				"internalType": "uint256[6][]",
+				"name": "",
+				"type": "uint256[6][]"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "contract UniswapV2Factory",
+				"name": "_uniswapFactory",
+				"type": "address"
+			},
+			{
+				"internalType": "contract UniswapV3Factory",
+				"name": "_uniswapFactoryV3",
+				"type": "address"
+			},
+			{
+				"internalType": "uint24[4]",
+				"name": "feeTires",
+				"type": "uint24[4]"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_start",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_stop",
+				"type": "uint256"
+			}
+		],
+		"name": "getPairsByIndexRange",
+		"outputs": [
+			{
+				"internalType": "address[7][]",
+				"name": "",
+				"type": "address[7][]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
 
 export const UNISWAP_PAIR_ABI = [{
   "inputs": [],
@@ -400,3 +629,160 @@ export const UNISWAP_PAIR_ABI = [{
   "stateMutability": "nonpayable",
   "type": "function"
 }]
+
+
+export const BUNDLE_EXECUTOR_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "address payable",
+				"name": "_to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_value",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "_data",
+				"type": "bytes"
+			}
+		],
+		"name": "call",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_executor",
+				"type": "address"
+			}
+		],
+		"stateMutability": "payable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "int256",
+				"name": "amount0Delta",
+				"type": "int256"
+			},
+			{
+				"internalType": "int256",
+				"name": "amount1Delta",
+				"type": "int256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "data",
+				"type": "bytes"
+			}
+		],
+		"name": "uniswapV3SwapCallback",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_ethAmountToCoinbase",
+				"type": "uint256"
+			},
+			{
+				"internalType": "address[]",
+				"name": "_targets",
+				"type": "address[]"
+			},
+			{
+				"internalType": "bytes[]",
+				"name": "_payloads",
+				"type": "bytes[]"
+			}
+		],
+		"name": "uniswapWethV3",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "contract IUniswapV3Pool",
+				"name": "pool",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "recepient",
+				"type": "address"
+			},
+			{
+				"internalType": "int256",
+				"name": "amountIn",
+				"type": "int256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "data",
+				"type": "bytes"
+			}
+		],
+		"name": "uniswapWethV3_OneForZero",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "contract IUniswapV3Pool",
+				"name": "pool",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "recepient",
+				"type": "address"
+			},
+			{
+				"internalType": "int256",
+				"name": "amountIn",
+				"type": "int256"
+			},
+			{
+				"internalType": "bytes",
+				"name": "data",
+				"type": "bytes"
+			}
+		],
+		"name": "uniswapWethV3_ZeroForOne",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "withdrawAll",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
+	}
+]

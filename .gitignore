@@ -1,4 +1,12 @@
-/.idea
-/node_modules
-/build
-/tsconfig.tsbuildinfo
+.idea
+node_modules
+build
+tsconfig.tsbuildinfo
+coverage
+coverage.json
+typechain
+typechain-types
+
+# Hardhat files
+cache
+artifacts

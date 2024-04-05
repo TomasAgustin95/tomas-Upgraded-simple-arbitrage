@@ -1,8 +1,16 @@
-simple-arbitrage
+Upgraded simple-arbitrage (support tx between uniswap v2 and v3)
 ================
-This repository contains a simple, mechanical system for discovering, evaluating, rating, and submitting arbitrage opportunities to the Flashbots bundle endpoint. This script is very unlikely to be profitable, as many users have access to it, and it is targeting well-known Ethereum opportunities.
+This repository is one of the upgraded versions of simple-arbitrage,.
 
-We hope you will use this repository as an example of how to integrate Flashbots into your own Flashbot searcher (bot). For more information, see the [Flashbots Searcher FAQ](https://docs.flashbots.net/flashbots-auction/searchers/faq)
+This version supports arbitraging between uniswap v2 and uniswap v3 pools by discovering arbitrage opportunities between v2 and v3 pools.
+
+The code is tested and work succesfully on goerli testnet, however failed to compete with other arbitrage bots on mainnet due to lack of multi-pool routing strategy.
+
+The code is free for anyone to use, the [FlashBotsUniswapQuery](https://etherscan.io/address/0x657c2be334ea5d9eb55635796f8770af8ac3b243) and [FlashBotsMultiCall (executer)](https://etherscan.io/address/0x41735c26032cA8539ba310B0e8E6F1Ab94a6c9B8) contracts are deployed on mainnet and the query contract is verified.
+
+To use this code, do remember to deploy your own executer contract so you own your earnings.
+
+If you find this code helpful, please consider giving a star, happy coding.
 
 Environment Variables
 =====================
@@ -27,3 +35,22 @@ $ PRIVATE_KEY=__PRIVATE_KEY_FROM_ABOVE__ \
     FLASHBOTS_RELAY_SIGNING_KEY=__RANDOM_ETHEREUM_PRIVATE_KEY__ \
       npm run start
 ```
+
+# TODO 
+
+* upgrade to uniswap V3
+
+* strategy <= graph theory, detect all possible pairs, mev-node
+  * WETH -> WETH/A -> A/B -> B/WETH -> WETH
+  * DAI -> DAI/A -> A/B -> B/DAI -> DAI
+
+* this is about market info 
+  * currently, after UniswappyV2EthPair.getUniswapMarketsByToken(provider, FACTORY_ADDRESSES) call markets.marketsByToken stays still, even after update reserve, if balance of reserver becomes greater than defined threshold they are still not included, which may now contains considerable profit to made
+    * (method 1) => eliminate markets below balance threshold and do not query Reserve_Update() for them
+      this should speed up searching and focused on the important pairs
+    * (method 2) => after update reserve, find markets with balance over threshold to include and remove markets with balances lower than threshold, this need to maintain a dynamic markets.marketsByToken object, which should make things more complicated
+
+* optimize gas cost by using bytecode call on bundle executor?
+* How to black list scam tokens to speed up search
+* maybe adding flashloan? (aave, dydx, uniswapV2 native one? ...)
+* better way to estimate buy/sell price other than setting ETHER.div(100) when arbitrage.evaluateMarkets(markets.marketsByToken)?

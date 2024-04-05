@@ -1,66 +1,47 @@
 import * as _ from "lodash";
-import { BigNumber, Contract, Wallet } from "ethers";
+import { BigNumber, Contract, Wallet, ethers } from "ethers";
 import { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
 import { WETH_ADDRESS } from "./addresses";
 import { EthMarket } from "./EthMarket";
-import { ETHER, bigNumberToDecimal } from "./utils";
+import { ETHER, THOUSAND_GWEI, bigNumberToDecimal } from "./utils";
+import { UniswappyV3EthPair } from "./UniswappyV3EthPair"
 
 export interface CrossedMarketDetails {
   profit: BigNumber,
   volume: BigNumber,
   tokenAddress: string,
-  buyFromMarket: EthMarket,
+  buyFromMarket: string,
   sellToMarket: EthMarket,
+  inter: BigNumber,
+  v3Tov2: boolean,
 }
 
-export type MarketsByToken = { [tokenAddress: string]: Array<EthMarket> }
+export type MarketsByToken = { [tokenAddress: string]: Array<UniswappyV3EthPair> }
 
-// TODO: implement binary search (assuming linear/exponential global maximum profitability)
-const TEST_VOLUMES = [
-  ETHER.div(100),
-  ETHER.div(10),
-  ETHER.div(6),
-  ETHER.div(4),
-  ETHER.div(2),
-  ETHER.div(1),
-  ETHER.mul(2),
-  ETHER.mul(5),
-  ETHER.mul(10),
-]
-
-export function getBestCrossedMarket(crossedMarkets: Array<EthMarket>[], tokenAddress: string): CrossedMarketDetails | undefined {
+export function getBestCrossedMarket(crossedMarkets: Array<UniswappyV3EthPair>, feeTires: Array<number>, expectedTokenOut: Array<BigNumber>, expectedWethOut: Array<BigNumber>, tokenAddr: Array<string>, v3Tov2: Array<boolean>, amountIn: BigNumber): CrossedMarketDetails | undefined {
   let bestCrossedMarket: CrossedMarketDetails | undefined = undefined;
-  for (const crossedMarket of crossedMarkets) {
-    const sellToMarket = crossedMarket[0]
-    const buyFromMarket = crossedMarket[1]
-    for (const size of TEST_VOLUMES) {
-      const tokensOutFromBuyingSize = buyFromMarket.getTokensOut(WETH_ADDRESS, tokenAddress, size);
-      const proceedsFromSellingTokens = sellToMarket.getTokensOut(tokenAddress, WETH_ADDRESS, tokensOutFromBuyingSize)
-      const profit = proceedsFromSellingTokens.sub(size);
-      if (bestCrossedMarket !== undefined && profit.lt(bestCrossedMarket.profit)) {
-        // If the next size up lost value, meet halfway. TODO: replace with real binary search
-        const trySize = size.add(bestCrossedMarket.volume).div(2)
-        const tryTokensOutFromBuyingSize = buyFromMarket.getTokensOut(WETH_ADDRESS, tokenAddress, trySize);
-        const tryProceedsFromSellingTokens = sellToMarket.getTokensOut(tokenAddress, WETH_ADDRESS, tryTokensOutFromBuyingSize)
-        const tryProfit = tryProceedsFromSellingTokens.sub(trySize);
-        if (tryProfit.gt(bestCrossedMarket.profit)) {
-          bestCrossedMarket = {
-            volume: trySize,
-            profit: tryProfit,
-            tokenAddress,
-            sellToMarket,
-            buyFromMarket
-          }
-        }
-        break;
-      }
+  for (let i = 0; i < crossedMarkets.length; i++) {
+    const market = crossedMarkets[i]
+    const profit = expectedWethOut[i].sub(amountIn)
+    if (bestCrossedMarket !== undefined && profit.gt(bestCrossedMarket.profit)) {
       bestCrossedMarket = {
-        volume: size,
+        volume: amountIn,
         profit: profit,
-        tokenAddress,
-        sellToMarket,
-        buyFromMarket
+        tokenAddress: tokenAddr[i],
+        buyFromMarket: market.v3Pools[feeTires[i]],
+        sellToMarket: market,
+        inter: expectedTokenOut[i],
+        v3Tov2: v3Tov2[i],
       }
+    }
+    bestCrossedMarket = {
+      volume: amountIn, // how much to buy
+      profit: profit, // how much profit
+      tokenAddress: tokenAddr[i],
+      buyFromMarket: market.v3Pools[feeTires[i]],
+      sellToMarket: market,
+      inter: expectedTokenOut[i],
+      v3Tov2: v3Tov2[i],
     }
   }
   return bestCrossedMarket;
@@ -71,71 +52,117 @@ export class Arbitrage {
   private bundleExecutorContract: Contract;
   private executorWallet: Wallet;
 
-  constructor(executorWallet: Wallet, flashbotsProvider: FlashbotsBundleProvider, bundleExecutorContract: Contract) {
+  constructor(executorWallet: Wallet, flashbotsProvider: FlashbotsBundleProvider, bundleExecutorContract: Contract, quoterContract: Contract) {
     this.executorWallet = executorWallet;
     this.flashbotsProvider = flashbotsProvider;
     this.bundleExecutorContract = bundleExecutorContract;
   }
 
   static printCrossedMarket(crossedMarket: CrossedMarketDetails): void {
-    const buyTokens = crossedMarket.buyFromMarket.tokens
+    const buyTokens = crossedMarket.buyFromMarket
     const sellTokens = crossedMarket.sellToMarket.tokens
     console.log(
       `Profit: ${bigNumberToDecimal(crossedMarket.profit)} Volume: ${bigNumberToDecimal(crossedMarket.volume)}\n` +
-      `${crossedMarket.buyFromMarket.protocol} (${crossedMarket.buyFromMarket.marketAddress})\n` +
-      `  ${buyTokens[0]} => ${buyTokens[1]}\n` +
-      `${crossedMarket.sellToMarket.protocol} (${crossedMarket.sellToMarket.marketAddress})\n` +
+      // market to sell WETH
+      `Sell Weth to V3 (${crossedMarket.buyFromMarket})\n` +
+      // market to buy back WETH
+      `For more Weth from V2 (${crossedMarket.sellToMarket.marketAddress})\n` +
       `  ${sellTokens[0]} => ${sellTokens[1]}\n` +
       `\n`
     )
   }
 
-
-  async evaluateMarkets(marketsByToken: MarketsByToken): Promise<Array<CrossedMarketDetails>> {
+  async evaluateMarkets(marketsByToken: MarketsByToken, amountIn: BigNumber): Promise<Array<CrossedMarketDetails>> {
     const bestCrossedMarkets = new Array<CrossedMarketDetails>()
 
+    const z: BigNumber = BigNumber.from(0)
     for (const tokenAddress in marketsByToken) {
+
       const markets = marketsByToken[tokenAddress]
-      const pricedMarkets = _.map(markets, (ethMarket: EthMarket) => {
+      const pricedMarkets = _.map(markets, (ethMarket: UniswappyV3EthPair) => {
+        
+        const feeTires: Array<number> = []
+
+        for (let i = 0; i < ethMarket.v3FeesOn.length; i++) {
+          if (ethMarket.expectedTokenOut[i].gt(z)) {
+            feeTires.push(i)
+          }
+        }
+
         return {
           ethMarket: ethMarket,
-          buyTokenPrice: ethMarket.getTokensIn(tokenAddress, WETH_ADDRESS, ETHER.div(100)),
-          sellTokenPrice: ethMarket.getTokensOut(WETH_ADDRESS, tokenAddress, ETHER.div(100)),
+          feeTires: feeTires,
         }
       });
 
-      const crossedMarkets = new Array<Array<EthMarket>>()
-      for (const pricedMarket of pricedMarkets) {
-        _.forEach(pricedMarkets, pm => {
-          if (pm.sellTokenPrice.gt(pricedMarket.buyTokenPrice)) {
-            crossedMarkets.push([pricedMarket.ethMarket, pm.ethMarket])
+      const crossedMarkets = new Array<UniswappyV3EthPair>()
+      const toTakeFeeTire = new Array<number>()
+      const expectedWethOut = new Array<BigNumber>()
+      const expectedTokenOut = new Array<BigNumber>()
+      const tokenAddr = new Array<string>()
+      const v3Tov2 = new Array<boolean>()
+      // for (const pricedMarket of pricedMarkets) {
+      _.forEach(pricedMarkets, pm => {
+        for (const feeTire of pm.feeTires) {
+          const amountOut = pm.ethMarket.getTokensOut(pm.ethMarket.tokenAddress, WETH_ADDRESS, pm.ethMarket.expectedTokenOut[feeTire])
+          if (amountOut.gt(amountIn)) {
+            crossedMarkets.push(pm.ethMarket)
+            toTakeFeeTire.push(feeTire)
+            expectedTokenOut.push(pm.ethMarket.expectedTokenOut[feeTire])
+            expectedWethOut.push(amountOut)
+            tokenAddr.push(tokenAddress)
+            v3Tov2.push(true)
           }
-        })
-      }
+        }
+      })
 
-      const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, tokenAddress);
-      if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(1000))) {
+      const bestCrossedMarket = getBestCrossedMarket(crossedMarkets, toTakeFeeTire, expectedTokenOut, expectedWethOut, tokenAddr, v3Tov2, amountIn);
+      if (bestCrossedMarket !== undefined && bestCrossedMarket.profit.gt(ETHER.div(1000))) { // 100000 // 1000
         bestCrossedMarkets.push(bestCrossedMarket)
       }
     }
     bestCrossedMarkets.sort((a, b) => a.profit.lt(b.profit) ? 1 : a.profit.gt(b.profit) ? -1 : 0)
+
     return bestCrossedMarkets
   }
 
   // TODO: take more than 1
-  async takeCrossedMarkets(bestCrossedMarkets: CrossedMarketDetails[], blockNumber: number, minerRewardPercentage: number): Promise<void> {
+  async takeCrossedMarkets(bestCrossedMarkets: CrossedMarketDetails[], blockNumber: number, minerRewardPercentage: number, amountIn: BigNumber): Promise<void> {
     for (const bestCrossedMarket of bestCrossedMarkets) {
 
-      console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
-      const buyCalls = await bestCrossedMarket.buyFromMarket.sellTokensToNextMarket(WETH_ADDRESS, bestCrossedMarket.volume, bestCrossedMarket.sellToMarket);
-      const inter = bestCrossedMarket.buyFromMarket.getTokensOut(WETH_ADDRESS, bestCrossedMarket.tokenAddress, bestCrossedMarket.volume)
-      const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(bestCrossedMarket.tokenAddress, inter, this.bundleExecutorContract.address);
+      // console.log("Send this much WETH", bestCrossedMarket.volume.toString(), "get this much profit", bestCrossedMarket.profit.toString())
 
-      const targets: Array<string> = [...buyCalls.targets, bestCrossedMarket.sellToMarket.marketAddress]
-      const payloads: Array<string> = [...buyCalls.data, sellCallData]
-      console.log({targets, payloads})
+      const targets: Array<string> = []
+      const payloads: Array<string> = []
+
+      if (bestCrossedMarket.v3Tov2) {
+
+        const tokenA = BigNumber.from(bestCrossedMarket.tokenAddress)
+        const tokenB = BigNumber.from(WETH_ADDRESS)
+        var buyCalls: ethers.PopulatedTransaction = {}
+
+        // by v3 pool def, token0 addr < token1 addr
+        if (tokenA.lt(tokenB)) { // WETH is token 1
+          buyCalls = await this.bundleExecutorContract.populateTransaction.uniswapWethV3_OneForZero(bestCrossedMarket.buyFromMarket, bestCrossedMarket.sellToMarket.marketAddress, amountIn, WETH_ADDRESS)
+        } else { // WETH is token 0
+          buyCalls = await this.bundleExecutorContract.populateTransaction.uniswapWethV3_ZeroForOne(bestCrossedMarket.buyFromMarket, bestCrossedMarket.sellToMarket.marketAddress, amountIn, WETH_ADDRESS)
+        }
+        if (buyCalls === undefined || buyCalls.data === undefined) throw new Error("undefined buyCalls, what are you trying to buy?")
+
+        const sellCallData = await bestCrossedMarket.sellToMarket.sellTokens(
+          bestCrossedMarket.tokenAddress,  // bestCrossedMarket.tokenAddress, 
+          bestCrossedMarket.inter, 
+          this.bundleExecutorContract.address
+        );
+  
+        targets.push(...[this.bundleExecutorContract.address, bestCrossedMarket.sellToMarket.marketAddress])
+        payloads.push(...[buyCalls.data, sellCallData])
+      } else {
+        console.log("v2 to v3 not implemented yet")
+      }
+
       const minerReward = bestCrossedMarket.profit.mul(minerRewardPercentage).div(100);
-      const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWeth(bestCrossedMarket.volume, minerReward, targets, payloads, {
+      const transaction = await this.bundleExecutorContract.populateTransaction.uniswapWethV3(minerReward, targets, payloads, {
         gasPrice: BigNumber.from(0),
         gasLimit: BigNumber.from(1000000),
       });
@@ -152,23 +179,51 @@ export class Arbitrage {
         }
         transaction.gasLimit = estimateGas.mul(2)
       } catch (e) {
+        console.warn(e)
         console.warn(`Estimate gas failure for ${JSON.stringify(bestCrossedMarket)}`)
         continue
       }
+
+      const gasPrice = await this.bundleExecutorContract.provider.getGasPrice()
+      transaction.gasPrice = gasPrice; // gasPrice.mul(1);
+      // transaction.maxFeePerGas = gasPrice.mul(7).div(5);
+      transaction.chainId = Number(process.env.CHAIN_ID)
+
+      const cost = transaction.gasPrice.mul(transaction.gasLimit.div(2))
+      const myProfit = bestCrossedMarket.profit.sub(minerReward)
+      if (cost.gt(myProfit)) {
+        console.log(`token ${bestCrossedMarket.tokenAddress}: tx gas cost ${cost.div(THOUSAND_GWEI).toString()} > profit ${myProfit.div(THOUSAND_GWEI).toString()}`)
+        continue
+      }
+
       const bundledTransactions = [
         {
           signer: this.executorWallet,
           transaction: transaction
         }
       ];
-      console.log(bundledTransactions)
       const signedBundle = await this.flashbotsProvider.signBundle(bundledTransactions)
-      //
-      const simulation = await this.flashbotsProvider.simulate(signedBundle, blockNumber + 1 )
+      console.log("bundle signed")
+
+      const simulation = await this.flashbotsProvider.simulate(signedBundle, blockNumber + 1)
+      console.log("bundle simulation")
+
       if ("error" in simulation || simulation.firstRevert !== undefined) {
+        if ("error" in simulation) {
+          console.log(`Simulation Error Message: ${simulation.error.message}`);
+        }
         console.log(`Simulation Error on token ${bestCrossedMarket.tokenAddress}, skipping`)
         continue
+      } else {
+        console.log(
+          `Simulation Success: ${blockNumber} ${JSON.stringify(
+            simulation,
+            null,
+            2
+          )}`
+        );
       }
+
       console.log(`Submitting bundle, profit sent to miner: ${bigNumberToDecimal(simulation.coinbaseDiff)}, effective gas price: ${bigNumberToDecimal(simulation.coinbaseDiff.div(simulation.totalGasUsed), 9)} GWEI`)
       const bundlePromises =  _.map([blockNumber + 1, blockNumber + 2], targetBlockNumber =>
         this.flashbotsProvider.sendRawBundle(
@@ -176,8 +231,9 @@ export class Arbitrage {
           targetBlockNumber
         ))
       await Promise.all(bundlePromises)
+      console.log(`Bundle succesfully submitted with expected profit approximately ${bestCrossedMarket.profit.div(1000000000).toString()} GWEI`)
       return
     }
-    throw new Error("No arbitrage submitted to relay")
+    console.log("No arbitrage submitted to relay")
   }
 }
