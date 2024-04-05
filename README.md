@@ -1,8 +1,6 @@
-Upgraded simple-arbitrage (arbitrage between uniswap v2 and v3)
+Upgraded simple-arbitrage
 ================
-This repository is one of the upgraded versions of simple-arbitrage.
-
-This version supports arbitraging between uniswap v2 and uniswap v3 pools by discovering arbitrage opportunities between v2 and v3 pools.
+This upgrade supports arbitraging between uniswap v2 and uniswap v3 pools by discovering arbitrage opportunities between v2 and v3 pools.
 
 The code is tested and work succesfully on goerli testnet, however failed to compete with other arbitrage bots on mainnet due to lack of multi-pool routing strategy.
 
