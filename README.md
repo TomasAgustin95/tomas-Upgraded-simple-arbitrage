@@ -36,7 +36,7 @@ $ PRIVATE_KEY=__PRIVATE_KEY_FROM_ABOVE__ \
 
 # TODO 
 
-* upgrade to uniswap V3
+* support uniswap v3 swap transaction off-chain simulation 
 
 * strategy <= graph theory, detect all possible pairs, mev-node
   * WETH -> WETH/A -> A/B -> B/WETH -> WETH
