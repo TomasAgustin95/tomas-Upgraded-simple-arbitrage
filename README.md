@@ -2,13 +2,13 @@ Upgraded simple-arbitrage
 ================
 This upgrade supports arbitraging between uniswap v2 and uniswap v3 pools by discovering arbitrage opportunities between v2 and v3 pools.
 
-The code is tested and work succesfully on goerli testnet, however failed to compete with other arbitrage bots on mainnet due to lack of multi-pool routing strategy.
+The repository is tested and works succesfully on goerli testnet, however failed to compete with other arbitrage bots on mainnet due to lack of multi-pool routing strategy.
 
-The code is free for anyone to use, the [FlashBotsUniswapQuery](https://etherscan.io/address/0x657c2be334ea5d9eb55635796f8770af8ac3b243) and [FlashBotsMultiCall (executer)](https://etherscan.io/address/0x41735c26032cA8539ba310B0e8E6F1Ab94a6c9B8) contracts are deployed on mainnet and the query contract is verified.
+The repository is free for anyone to use, the [FlashBotsUniswapQuery](https://etherscan.io/address/0x657c2be334ea5d9eb55635796f8770af8ac3b243) and [FlashBotsMultiCall (executer)](https://etherscan.io/address/0x41735c26032cA8539ba310B0e8E6F1Ab94a6c9B8) contracts are deployed on mainnet and the query contract is verified.
 
-To use this code, do remember to deploy your own executer contract so you own your earnings.
+To use this repository, do remember to deploy your own executer contract so you own your earnings.
 
-If you find this code helpful, please consider giving a star, happy coding.
+If you find this repository helpful, please consider giving a star, happy coding.
 
 Environment Variables
 =====================
