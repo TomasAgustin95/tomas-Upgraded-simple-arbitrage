@@ -34,6 +34,9 @@ $ PRIVATE_KEY=__PRIVATE_KEY_FROM_ABOVE__ \
       npm run start
 ```
 
+# Contributing
+Thanks for your help improving the project! We are so happy to have you! Feel free to make a PR if you would like to add some new features.
+
 # TODO 
 
 * support uniswap v3 swap transaction off-chain simulation 
